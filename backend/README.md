@@ -40,3 +40,31 @@ Returns the updated user's profile.
 - `400 Bad Request` — Invalid name
 - `401 Unauthorized` — Missing or invalid token
 - `404 Not Found` — User not found
+### Change Password API
+
+**Endpoint:** `PATCH /api/auth/change-password`
+
+**Authentication:** Required — Bearer token
+
+**Request body:**
+```json
+{
+  "currentPassword": "CurrentPass123!",
+  "newPassword": "NewPass456!"
+}
+```
+
+**Success response:**
+```json
+{
+  "success": true,
+  "message": "Password changed successfully. Please log in again."
+}
+```
+
+**Validation:**
+- Requires a valid authentication token.
+- Requires the correct current password.
+- Requires a new password of at least 8 characters.
+- Rejects a new password that matches the current password.
+- Hashes the new password before saving it.
