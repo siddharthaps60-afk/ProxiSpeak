@@ -19,8 +19,10 @@ const io = new Server(httpServer,{
 
 
 const {registerMovementHandlers} = require("./src/sockets/movement");
+const { registerWebRTCHandlers } = require("./src/sockets/webrtc");
 
 registerMovementHandlers(io);
+registerWebRTCHandlers(io);
 
 
 httpServer.listen(PORT, () => {
