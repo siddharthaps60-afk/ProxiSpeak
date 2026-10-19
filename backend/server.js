@@ -20,10 +20,13 @@ const io = new Server(httpServer,{
 
 const {registerMovementHandlers} = require("./src/sockets/movement");
 const { registerWebRTCHandlers } = require("./src/sockets/webrtc");
+const {
+  registerSocketUserMapping,
+} = require("./src/sockets/socketUserMapping");
 
 registerMovementHandlers(io);
 registerWebRTCHandlers(io);
-
+registerSocketUserMapping(io);
 
 httpServer.listen(PORT, () => {
   console.log(`ProxiSpeak backend running on port ${PORT}`);
