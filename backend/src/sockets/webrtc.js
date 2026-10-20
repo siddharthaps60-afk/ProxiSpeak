@@ -1,27 +1,50 @@
 
 const User = require("../models/user.model");
 const { getNearbyUsers } = require("../services/proximityService");
+const { getSocketId, getUserId } = require("./socketUserMapping");
 
 const MAX_DISTANCE = 100;
 
 module.exports.registerWebRTCHandlers = (io) => {
   io.on("connection", (socket) => {
-    // Send an offer or answer only to a connected nearby recipient.
     const relaySignal = async (eventName, data, expectedType) => {
       try {
-        const { recipientSocketId, sdp } = data || {};
+        // Step 6: Require the sender to register before signaling.
+        const senderUserId = getUserId(socket.id);
 
-        if (
-          typeof recipientSocketId !== "string" ||
-          !recipientSocketId.trim() ||
-          recipientSocketId === socket.id
-        ) {
+        if (!senderUserId) {
           return socket.emit("webrtc:error", {
-            code: "INVALID_RECIPIENT",
-            message: "A valid recipientSocketId is required.",
+            code: "SENDER_NOT_REGISTERED",
+            message: "Register your userId before sending WebRTC signals.",
           });
         }
 
+        // Read and validate the recipient's stable user ID.
+        const { sdp } = data || {};
+        const recipientUserId =
+          typeof data?.recipientUserId === "string"
+            ? data.recipientUserId.trim()
+            : "";
+
+        if (
+          !recipientUserId ||
+          recipientUserId.length > 100
+        ) {
+          return socket.emit("webrtc:error", {
+            code: "INVALID_RECIPIENT",
+            message: "A valid recipientUserId is required.",
+          });
+        }
+
+        // Prevent sending a signal to yourself.
+        if (recipientUserId === senderUserId) {
+          return socket.emit("webrtc:error", {
+            code: "INVALID_RECIPIENT",
+            message: "You cannot send a signal to yourself.",
+          });
+        }
+
+        // Validate the SDP offer or answer.
         if (
           !sdp ||
           typeof sdp !== "object" ||
@@ -36,10 +59,25 @@ module.exports.registerWebRTCHandlers = (io) => {
           });
         }
 
-        // Get the sender's position from the database, not client input.
+        // Resolve the recipient's user ID to their active socket.
+        const recipientSocketId = getSocketId(recipientUserId);
+
+        if (
+          !recipientSocketId ||
+          !io.sockets.sockets.has(recipientSocketId)
+        ) {
+          return socket.emit("webrtc:error", {
+            code: "RECIPIENT_DISCONNECTED",
+            message: "The recipient is not registered or is disconnected.",
+          });
+        }
+
+        // Find the sender's saved position in MongoDB.
         const sender = await User.findOne({
           socketId: socket.id,
-        }).select("socketId location").lean();
+        })
+          .select("socketId location")
+          .lean();
 
         if (
           !sender ||
@@ -53,7 +91,7 @@ module.exports.registerWebRTCHandlers = (io) => {
           });
         }
 
-        // Confirm the recipient is within the allowed radius.
+        // Find users within the allowed proximity distance.
         const nearbyUsers = await getNearbyUsers({
           x: sender.location[0],
           y: sender.location[1],
@@ -72,19 +110,9 @@ module.exports.registerWebRTCHandlers = (io) => {
           });
         }
 
-        // Socket.IO IDs are also private rooms.
-        const recipientIsConnected =
-          io.sockets.sockets.has(recipientSocketId);
-
-        if (!recipientIsConnected) {
-          return socket.emit("webrtc:error", {
-            code: "RECIPIENT_DISCONNECTED",
-            message: "The recipient is no longer connected.",
-          });
-        }
-
-        // Never trust a sender ID supplied by the client.
+        // Relay the signal only to the nearby recipient.
         io.to(recipientSocketId).emit(eventName, {
+          senderUserId,
           senderSocketId: socket.id,
           sdp,
         });
