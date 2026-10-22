@@ -234,3 +234,82 @@ test("relays a valid answer to a nearby registered recipient", async () => {
   assert.equal(payload.sdp.type, "answer");
   assert.equal(payload.sdp.sdp, "test-answer-sdp");
 });
+
+test("rejects an offer to an unregistered recipient", async () => {
+  const sender = await connectClient();
+
+  await registerUser(sender, "day5-unknown-recipient-sender");
+
+  const errorEvent = waitForEvent(sender, "webrtc:error");
+
+  sender.emit("webrtc:offer", {
+    recipientUserId: "day5-user-does-not-exist",
+    sdp: {
+      type: "offer",
+      sdp: "test-offer-sdp",
+    },
+  });
+
+  const error = await errorEvent;
+
+  assert.equal(error.code, "RECIPIENT_DISCONNECTED");
+});
+
+test("rejects an offer with a missing recipient ID", async () => {
+  const sender = await connectClient();
+
+  await registerUser(sender, "day5-missing-recipient-sender");
+
+  const errorEvent = waitForEvent(sender, "webrtc:error");
+
+  sender.emit("webrtc:offer", {
+    sdp: {
+      type: "offer",
+      sdp: "test-offer-sdp",
+    },
+  });
+
+  const error = await errorEvent;
+
+  assert.equal(error.code, "INVALID_RECIPIENT");
+});
+
+test("rejects an offer with missing SDP", async () => {
+  const sender = await connectClient();
+
+  await registerUser(sender, "day5-missing-sdp-sender");
+
+  const errorEvent = waitForEvent(sender, "webrtc:error");
+
+  sender.emit("webrtc:offer", {
+    recipientUserId: "day5-any-recipient",
+  });
+
+  const error = await errorEvent;
+
+  assert.equal(error.code, "INVALID_SDP");
+});
+
+test("rejects an answer when the recipient is not nearby", async () => {
+  const sender = await connectClient();
+  const recipient = await connectClient();
+
+  await registerUser(sender, "day5-far-answer-sender");
+  await registerUser(recipient, "day5-far-answer-recipient");
+
+  nearbySocketIds = [];
+
+  const errorEvent = waitForEvent(sender, "webrtc:error");
+
+  sender.emit("webrtc:answer", {
+    recipientUserId: "day5-far-answer-recipient",
+    sdp: {
+      type: "answer",
+      sdp: "test-answer-sdp",
+    },
+  });
+
+  const error = await errorEvent;
+
+  assert.equal(error.code, "RECIPIENT_NOT_NEARBY");
+});
