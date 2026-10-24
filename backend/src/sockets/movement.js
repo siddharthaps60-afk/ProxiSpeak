@@ -10,14 +10,17 @@ module.exports.registerMovementHandlers = (io) => {
 
       // Validate coordinates
       if (
-        typeof x !== "number" ||
-        typeof y !== "number" ||
-        !Number.isFinite(x) ||
-        !Number.isFinite(y)
-      ) {
-        return;
-      }
-
+  typeof x !== "number" ||
+  typeof y !== "number" ||
+  !Number.isFinite(x) ||
+  !Number.isFinite(y) ||
+  x < 0 ||
+  x > 10000 ||
+  y < 0 ||
+  y > 10000
+) {
+  return;
+}
       try {
         await User.findOneAndUpdate(
           { socketId: socket.id },
