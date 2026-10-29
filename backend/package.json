@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node test/socketUserMapping.test.js && node --test test/webrtc.test.js && node --test test/movement.test.js",
+    "test": "node test/socketUserMapping.test.js && node --test test/webrtc.test.js && node --test test/movement.test.js && node --test test/redisAdapter.test.js",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
