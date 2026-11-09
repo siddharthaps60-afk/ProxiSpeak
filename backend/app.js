@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./src/routes/auth.routes");
+const roomRoutes = require("./src/routes/room.routes");
 const redisClient = require("./src/config/redis");
 
 const app = express();
@@ -22,5 +23,6 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/rooms", roomRoutes);
 
 module.exports = app;
